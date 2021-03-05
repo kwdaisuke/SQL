@@ -1,0 +1,44 @@
+SELECT loss.customercategoryname, 
+       loss.maxloss, 
+       tt.customername, 
+       tt.customerid 
+FROM   (SELECT t.customercategoryname, 
+               Max(t.totalvaluelostorders) AS MaxLoss 
+        FROM   (SELECT Cu.customerid, 
+                       Cu.customername, 
+                       Ca.customercategoryname, 
+                       Sum(ol.quantity * ol.unitprice) AS TotalValueLostOrders 
+                FROM   sales.orders AS O, 
+                       sales.orderlines AS ol, 
+                       sales.customers AS Cu, 
+                       sales.customercategories AS Ca 
+                WHERE  NOT EXISTS (SELECT * 
+                                   FROM   sales.invoices AS I 
+                                   WHERE  I.orderid = O.orderid) 
+                       AND ol.orderid = O.orderid 
+                       AND Cu.customerid = O.customerid 
+                       AND Ca.customercategoryid = Cu.customercategoryid 
+                GROUP  BY Cu.customerid, 
+                          Cu.customername, 
+                          Ca.customercategoryname) AS t 
+        GROUP  BY customercategoryname) AS loss, 
+       (SELECT Cu.customerid, 
+               Cu.customername, 
+               Ca.customercategoryname, 
+               Sum(ol.quantity * ol.unitprice) AS maxloss2 
+        FROM   sales.orders AS O, 
+               sales.orderlines AS ol, 
+               sales.customers AS Cu, 
+               sales.customercategories AS Ca 
+        WHERE  NOT EXISTS (SELECT * 
+                           FROM   sales.invoices AS I 
+                           WHERE  I.orderid = O.orderid) 
+               AND ol.orderid = O.orderid 
+               AND Cu.customerid = O.customerid 
+               AND Ca.customercategoryid = Cu.customercategoryid 
+        GROUP  BY Cu.customerid, 
+                  Cu.customername, 
+                  Ca.customercategoryname) AS tt 
+WHERE  loss.customercategoryname = tt.customercategoryname 
+       AND loss.maxloss = tt.maxloss2 
+ORDER  BY loss.maxloss DESC 
